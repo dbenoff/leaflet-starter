@@ -162,15 +162,45 @@ function App() {
     setFormData({ name: '', description: '', type: 'custom' });
   };
 
-  if (loading) {
-    return <div className="loading">Loading map data...</div>;
-  }
+  
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0];
+      
+      if (file) {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+          console.log('File name:', file.name);
+          console.log('File size:', file.size, 'bytes');
+          console.log('File type:', file.type);
+          console.log('File contents:', e.target.result);
+        };
+        
+        // Read as text for most files, you can change this based on your needs
+        reader.readAsText(file);
+      }
+  };
 
   return (
     <div className="app">
       <header className="app-header">
         <h1>Interactive Location Map</h1>
         <p>Click on the map to add new locations</p>
+
+        <div className="p-6 max-w-md mx-auto bg-white rounded-lg shadow-md">
+          <h2 className="text-xl font-bold mb-4 text-gray-800">File Dialog Component</h2>
+          <div className="space-y-4">
+            <input
+              type="file"
+              onChange={handleFileSelect}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            <p className="text-sm text-gray-600">
+              Select a file to see its contents logged to the console
+            </p>
+          </div>
+        </div>
+
       </header>
 
       {error && (
