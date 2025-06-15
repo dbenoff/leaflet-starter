@@ -21,6 +21,43 @@ function App() {
   // Default center (New York City)
   const defaultCenter = [40.7589, -73.9851];
 
+
+  const postDataToAPI = async () => {
+    
+    try {
+      // Using JSONPlaceholder as a test API endpoint
+      const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: "formData.name",
+          body: "formData.message",
+          userId: 1,
+          email: "formData.email"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Log the response to console
+      console.log('API Response:', data);
+    } catch (error) {
+      console.error('API Error:', error);
+    } finally {
+    }
+  };
+
+
+
+
+
+
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     
@@ -28,21 +65,21 @@ function App() {
       const reader = new FileReader();
       
       reader.onload = (e) => {
-        console.log('File contents:', e.target.result);
         const gpxString = e.target.result;
         
         try {
+          //parse xml and check for errors
           const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
-          // Check for parsing errors
           const parserError = gpxXmlDoc.querySelector('parsererror');
           if (parserError) {
             throw new Error(`XML parsing error: ${parserError.textContent}`);
           }
-          const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
 
+          const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
           setLayers(prev => [...prev, gpxGeoJson]);
-          const layer = L.geoJson(gpxGeoJson);
-          map.fitBounds(layer.getBounds());
+          const gpxGeoJsonLayer = L.geoJson(gpxGeoJson);
+          map.fitBounds(gpxGeoJsonLayer.getBounds());
+          postDataToAPI();
 
         } catch (error) {
           throw new Error(`Failed to parse XML: ${error.message}`);
