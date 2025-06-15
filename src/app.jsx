@@ -17,46 +17,81 @@ function MapClickHandler({ onMapClick }) {
 function App() {
   const [layers, setLayers] = useState([]);
   const [map, setMap] = useState(null);
+  const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
 
-  // Default center (New York City)
-  const defaultCenter = [40.7589, -73.9851];
-
-
-  const postDataToAPI = async () => {
+  const mapMatchApi = async (gpxGeoJson) => {
     
     try {
-      // Using JSONPlaceholder as a test API endpoint
+
+      const body = {
+              "shape":[],
+              "costing":"auto",
+              "shape_match":"walk_or_snap"
+            }
+
+
+      const coords = gpxGeoJson.features[0].geometry.coordinates;
+      coords.forEach((coord) => {
+        const point = { "lat":coord[1],"lon":coord[0]};
+        body.shape.push(point)
+      });
+
       const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title: "formData.name",
-          body: "formData.message",
-          userId: 1,
-          email: "formData.email"
-        })
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      
-      // Log the response to console
-      console.log('API Response:', data);
+      const mapMatchingResponse = await response.json();
+      const matchedPoints = [];
+      mapMatchingResponse.matched_points.forEach((matchedPoint) => {
+        const edge_index = matchedPoint.edge_index;
+        const road_name = edge_index 
+        &&  mapMatchingResponse.edges 
+        && mapMatchingResponse.edges[edge_index]
+        && mapMatchingResponse.edges[edge_index].names ? 
+          mapMatchingResponse.edges[edge_index].names[0] : "none";
+        const point = [matchedPoint.lon, matchedPoint.lat];
+        matchedPoints.push(point)
+      });
+
+      console.log(mapMatchingResponse.edges);
+
+      matchedPoints.forEach((matchedPoint) => {
+        console.log(matchedPoint.name);
+      })
+
+      const mapMatchedGeoJson = {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: {
+              type: "LineString",
+              coordinates: matchedPoints
+            }
+          }
+        ]
+      }
+
+      //console.log(JSON.stringify(mapMatchedGeoJson))
+      const mapMatchedGeoJsonLayer = L.geoJson(mapMatchedGeoJson);
+      map.fitBounds(mapMatchedGeoJsonLayer.getBounds());
+
+      setLayers(prev => [...prev, mapMatchedGeoJson]);
+
     } catch (error) {
       console.error('API Error:', error);
     } finally {
     }
   };
-
-
-
-
-
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
@@ -76,10 +111,10 @@ function App() {
           }
 
           const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-          setLayers(prev => [...prev, gpxGeoJson]);
+          //setLayers(prev => [...prev, gpxGeoJson]);
           const gpxGeoJsonLayer = L.geoJson(gpxGeoJson);
           map.fitBounds(gpxGeoJsonLayer.getBounds());
-          postDataToAPI();
+          mapMatchApi(gpxGeoJson);
 
         } catch (error) {
           throw new Error(`Failed to parse XML: ${error.message}`);
@@ -117,14 +152,6 @@ function App() {
             )) 
             : null
           } 
-
-          {/* {geoJsonData ? 
-             <GeoJSON data={geoJsonData} />
-            : null
-          } */}
-          
-          
-          
           
           {/*           
           <MapClickHandler onMapClick={handleMapClick} />
