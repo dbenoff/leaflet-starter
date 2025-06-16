@@ -48,8 +48,48 @@ function App() {
       }
 
       const mapMatchingResponse = await response.json();
-      const matchedPoints = [];
 
+      // ordered array of coordinate arrays grouped by edge ID.
+      // there can be multiple arrays with null (unmatched) edge IDs
+      // if there are multiple unmatched segments in the route.
+      const geometryArraysGroupedByEdgeIndex = [];
+      let previousPoint = mapMatchingResponse.matched_points[0];
+      let currentSegment = [];
+      currentSegment.push(previousPoint);
+      mapMatchingResponse.matched_points.forEach((matchedPoint, index) => {
+        if(index > 0){
+          if(previousPoint && matchedPoint.edge_index == previousPoint.edge_index){
+            currentSegment.push(matchedPoint);
+          }else{
+            geometryArraysGroupedByEdgeIndex.push(currentSegment);
+            currentSegment = [];
+            currentSegment.push(matchedPoint);
+          }
+          previousPoint = matchedPoint;
+        }
+      });
+
+      //now append edge names to points
+      geometryArraysGroupedByEdgeIndex.forEach((geometryArray, index) => {
+        if(geometryArray[0].edge_index){
+          const edgeIndex = geometryArray[0].edge_index;
+          const edgeName = mapMatchingResponse.edges[edgeIndex].names ? 
+            mapMatchingResponse.edges[edgeIndex].names[0] : "No edge name";
+          geometryArray.forEach((point, index) => {
+            point.name = edgeName;
+          });
+        }else{
+          geometryArray.forEach((point, index) => {
+            point.name = "Unmatched";
+          });
+        }
+      });
+  
+
+      console.log(geometryArraysGroupedByEdgeIndex);
+
+      //create ordered list of latLng coords
+      const matchedPoints = [];
       mapMatchingResponse.matched_points.forEach((matchedPoint) => {
         const edge_index = matchedPoint.edge_index;
         const road_name = edge_index 
