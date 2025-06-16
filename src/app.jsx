@@ -15,7 +15,6 @@ function MapClickHandler({ onMapClick }) {
 }
 
 function App() {
-  const [layers, setLayers] = useState([]);
   const [map, setMap] = useState(null);
   const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
 
@@ -36,7 +35,7 @@ function App() {
         body.shape.push(point)
       });
 
-      const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes', {
+      const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes ', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -50,6 +49,7 @@ function App() {
 
       const mapMatchingResponse = await response.json();
       const matchedPoints = [];
+
       mapMatchingResponse.matched_points.forEach((matchedPoint) => {
         const edge_index = matchedPoint.edge_index;
         const road_name = edge_index 
@@ -60,12 +60,6 @@ function App() {
         const point = [matchedPoint.lon, matchedPoint.lat];
         matchedPoints.push(point)
       });
-
-      console.log(mapMatchingResponse.edges);
-
-      matchedPoints.forEach((matchedPoint) => {
-        console.log(matchedPoint.name);
-      })
 
       const mapMatchedGeoJson = {
         type: "FeatureCollection",
@@ -81,12 +75,17 @@ function App() {
         ]
       }
 
-      //console.log(JSON.stringify(mapMatchedGeoJson))
-      const mapMatchedGeoJsonLayer = L.geoJson(mapMatchedGeoJson);
+
+      const style = {
+          style: {
+            color: 'red',
+            weight: 13,
+            opacity: 1
+          }
+      }
+
+      const mapMatchedGeoJsonLayer = L.geoJson(mapMatchedGeoJson, style).addTo(map);;
       map.fitBounds(mapMatchedGeoJsonLayer.getBounds());
-
-      setLayers(prev => [...prev, mapMatchedGeoJson]);
-
     } catch (error) {
       console.error('API Error:', error);
     } finally {
@@ -111,9 +110,6 @@ function App() {
           }
 
           const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-          //setLayers(prev => [...prev, gpxGeoJson]);
-          const gpxGeoJsonLayer = L.geoJson(gpxGeoJson);
-          map.fitBounds(gpxGeoJsonLayer.getBounds());
           mapMatchApi(gpxGeoJson);
 
         } catch (error) {
@@ -144,14 +140,6 @@ function App() {
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
-
-          {layers ? 
-            layers.map((data, index) => (
-              <GeoJSON key={index} data={data} />
-            )) 
-            : null
-          } 
           
           {/*           
           <MapClickHandler onMapClick={handleMapClick} />
