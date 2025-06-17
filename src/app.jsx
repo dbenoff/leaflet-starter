@@ -4,6 +4,8 @@ import togeojson from '@mapbox/togeojson'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './app.css';
+import Button from 'react-bootstrap/Button';
+
 
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
@@ -17,6 +19,7 @@ function MapClickHandler({ onMapClick }) {
 function App() {
   const [map, setMap] = useState(null);
   const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
+  const uploadButtonRef = useRef(null);
 
   const mapMatchApi = async (gpxGeoJson) => {
     
@@ -35,7 +38,7 @@ function App() {
         body.shape.push(point)
       });
 
-      const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes ', {
+      const response = await fetch('https://valhalla1.openstreetmap.de/trace_attributes', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +50,11 @@ function App() {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
+      //console.log(JSON.stringify(body));
+
       const mapMatchingResponse = await response.json();
+
+      console.log(JSON.stringify(mapMatchingResponse));
 
       // ordered array of coordinate arrays grouped by edge ID.
       // there can be multiple arrays with null (unmatched) edge IDs
@@ -69,11 +76,12 @@ function App() {
         }
       });
 
-      //now append edge names to points
+      //now append edge  points
       geometryArraysGroupedByEdgeIndex.forEach((geometryArray, index) => {
         if(geometryArray[0].edge_index){
           const edgeIndex = geometryArray[0].edge_index;
-          const edgeName = mapMatchingResponse.edges[edgeIndex].names ? 
+          const edge = mapMatchingResponse.edges[edgeIndex];
+          const edgeName = edge && edge.names && edge.names.length >  0 ? 
             mapMatchingResponse.edges[edgeIndex].names[0] : "No edge name";
           geometryArray.forEach((point, index) => {
             point.name = edgeName;
@@ -84,52 +92,56 @@ function App() {
           });
         }
       });
-  
-
-      console.log(geometryArraysGroupedByEdgeIndex);
-
-      //create ordered list of latLng coords
-      const matchedPoints = [];
-      mapMatchingResponse.matched_points.forEach((matchedPoint) => {
-        const edge_index = matchedPoint.edge_index;
-        const road_name = edge_index 
-        &&  mapMatchingResponse.edges 
-        && mapMatchingResponse.edges[edge_index]
-        && mapMatchingResponse.edges[edge_index].names ? 
-          mapMatchingResponse.edges[edge_index].names[0] : "none";
-        const point = [matchedPoint.lon, matchedPoint.lat];
-        matchedPoints.push(point)
-      });
 
       const mapMatchedGeoJson = {
         type: "FeatureCollection",
-        features: [
-          {
+        features: []
+      }
+
+      geometryArraysGroupedByEdgeIndex.forEach((geometryArray, index) => {
+        const pointsArray = [];
+        if(index > 0){
+          const lastPointFromPreviousLine = geometryArraysGroupedByEdgeIndex[index - 1].at(-1);
+          pointsArray.push([lastPointFromPreviousLine.lon, lastPointFromPreviousLine.lat])
+        }
+        geometryArray.forEach((matchedPoint, index) => {
+          const pointArray = [matchedPoint.lon, matchedPoint.lat];
+          pointsArray.push(pointArray)
+        })
+
+        const feature = {
             type: "Feature",
-            properties: {},
+            properties: {
+              name: geometryArray[0].name
+            },
             geometry: {
               type: "LineString",
-              coordinates: matchedPoints
+              coordinates: pointsArray
             }
           }
-        ]
-      }
 
+           mapMatchedGeoJson.features.push(feature);
+      })
+  
 
-      const style = {
-          style: {
-            color: 'red',
-            weight: 13,
-            opacity: 1
-          }
-      }
-
-      const mapMatchedGeoJsonLayer = L.geoJson(mapMatchedGeoJson, style).addTo(map);;
+      const mapMatchedGeoJsonLayer = L.geoJSON(mapMatchedGeoJson, {
+        style: function(feature) {
+            switch (feature.properties.name) {
+                case 'Unmatched': return {color: "#ff0000"};
+                return {color: "#0000ff"};
+            }
+        }
+      }).addTo(map);
       map.fitBounds(mapMatchedGeoJsonLayer.getBounds());
     } catch (error) {
       console.error('API Error:', error);
     } finally {
     }
+  };
+
+
+  const handleUploadClick = (event) => {
+    uploadButtonRef.current.click();
   };
 
   const handleFileSelect = (event) => {
@@ -162,31 +174,44 @@ function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
-        <input
-          type="file"
-          onChange={handleFileSelect}
-        />
-      </header>
-
-      <div className="map-container">
-        <MapContainer
-          center={defaultCenter}
-          zoom={12}
-          style={{ height: '500px', width: '100%' }}
-          ref={setMap}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          
-          {/*           
-          <MapClickHandler onMapClick={handleMapClick} />
-           */}
-        
-        </MapContainer>
+      <div className="container">
+        <div className="row">
+          <div className="col-9">
+            <div className="map-container">
+              <MapContainer
+                center={defaultCenter}
+                zoom={12}
+                style={{ height: '500px', width: '100%' }}
+                ref={setMap}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                
+                {/*           
+                <MapClickHandler onMapClick={handleMapClick} />
+                */}
+              
+              </MapContainer>
+            </div>
+          </div>
+          <div className="col-3 p-3 bg-primary bg-gradient text-break">
+            <input type="file" ref={uploadButtonRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
+            <button onClick={handleUploadClick}>Open File Dialog</button>
+          </div>
+        </div>
       </div>
+
+
+
+
+
+
+
+
+
+
     </div>
   );
 }
