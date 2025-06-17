@@ -177,28 +177,26 @@ function App() {
       <div className="container">
         <div className="row">
           <div className="col-9">
-            <div className="map-container">
-              <MapContainer
-                center={defaultCenter}
-                zoom={12}
-                style={{ height: '500px', width: '100%' }}
-                ref={setMap}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                
-                {/*           
-                <MapClickHandler onMapClick={handleMapClick} />
-                */}
+            <MapContainer
+              center={defaultCenter}
+              zoom={12}
+              style={{ borderRadius: '6px', height: '500px', width: '100%' }}
+              ref={setMap}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
               
-              </MapContainer>
-            </div>
+              {/*           
+              <MapClickHandler onMapClick={handleMapClick} />
+              */}
+            
+            </MapContainer>
           </div>
-          <div className="col-3 p-3 bg-primary bg-gradient text-break">
+          <div className="rounded col-3 p-3 bg-primary bg-gradient text-break">
             <input type="file" ref={uploadButtonRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
-            <button onClick={handleUploadClick}>Open File Dialog</button>
+            <button className="rounded btn btn-light" onClick={handleUploadClick}>Open File Dialog</button>
           </div>
         </div>
       </div>
