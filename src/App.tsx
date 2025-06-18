@@ -63,7 +63,50 @@ function App() {
   const uploadButtonRef = useRef(null);
 
 
-const mapMatchApi = async (gpxGeoJson: GpxGeoJson): Promise<void> => {
+
+
+
+
+
+
+
+
+
+  const [workerResult, setWorkerResult] = useState(null);
+  const [workerInstance, setWorkerInstance] = useState(null);
+
+
+  useEffect(() => {
+      const workerUrl = new URL("./worker.js", import.meta.url);
+      const worker = new Worker(workerUrl, {
+        type: "module"
+      })
+
+      worker.onmessage = (event) => {
+        console.log(event.data);
+        setWorkerResult(event.data);
+      };
+
+      setWorkerInstance(worker);
+
+      // Clean up worker on component unmount
+      return () => {
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+      };
+  }, []);
+
+
+
+
+
+
+
+const getMapMatchResults = async (gpxGeoJson: GpxGeoJson): Promise<void> => {
+  
+  
+  workerInstance.postMessage(5);
+
     try {
       const body: RequestBody = {
         shape: [],
@@ -177,7 +220,6 @@ const mapMatchApi = async (gpxGeoJson: GpxGeoJson): Promise<void> => {
     }
   };
 
-
   const handleUploadClick = (event: React.MouseEvent<HTMLElement>): void => {
     uploadButtonRef.current?.click();
   };
@@ -187,34 +229,28 @@ const mapMatchApi = async (gpxGeoJson: GpxGeoJson): Promise<void> => {
     const file = target.files?.[0];    
     if (file) {
 
-      const parser = createParser([file], map);
-      const layerData = await parser.createLayer();
-      map.fitBounds(layerData.getBounds());
-
-
+      const reader = new FileReader();
       
-      // const reader = new FileReader();
-      
-      // reader.onload = (e: ProgressEvent<FileReader>): void => {
-      //   const gpxString = e.target?.result as string;
+      reader.onload = (e: ProgressEvent<FileReader>): void => {
+        const gpxString = e.target?.result as string;
         
-      //   try {
-      //     // Parse xml and check for errors
-      //     const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
-      //     const parserError = gpxXmlDoc.querySelector('parsererror');
-      //     if (parserError) {
-      //       throw new Error(`XML parsing error: ${parserError.textContent}`);
-      //     }
+        try {
+          // Parse xml and check for errors
+          const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
+          const parserError = gpxXmlDoc.querySelector('parsererror');
+          if (parserError) {
+            throw new Error(`XML parsing error: ${parserError.textContent}`);
+          }
 
-      //     const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-      //     mapMatchApi(gpxGeoJson);
+          const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
+          getMapMatchResults(gpxGeoJson);
 
-      //   } catch (error) {
-      //     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      //     throw new Error(`Failed to parse XML: ${errorMessage}`);
-      //   }
-      // };
-      // reader.readAsText(file);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(`Failed to parse XML: ${errorMessage}`);
+        }
+      };
+      reader.readAsText(file);
     }
   };
 
