@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
 import togeojson from '@mapbox/togeojson'
 import L, { LatLng } from 'leaflet';
+import createParser from './app/parsers/parserFactory';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 import Button from 'react-bootstrap/Button';
+import loam from 'loam';
 
+loam.initialize("/");
 
 // Type definitions
 interface GpxGeoJson {
@@ -179,33 +182,39 @@ const mapMatchApi = async (gpxGeoJson: GpxGeoJson): Promise<void> => {
     uploadButtonRef.current?.click();
   };
 
-  const handleFileSelect = (event: Event): void => {
+  const handleFileSelect = async (event: Event): void => {
     const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];
-    
+    const file = target.files?.[0];    
     if (file) {
-      const reader = new FileReader();
+
+      const parser = createParser([file], map);
+      const layerData = await parser.createLayer();
+      map.fitBounds(layerData.getBounds());
+
+
       
-      reader.onload = (e: ProgressEvent<FileReader>): void => {
-        const gpxString = e.target?.result as string;
+      // const reader = new FileReader();
+      
+      // reader.onload = (e: ProgressEvent<FileReader>): void => {
+      //   const gpxString = e.target?.result as string;
         
-        try {
-          // Parse xml and check for errors
-          const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
-          const parserError = gpxXmlDoc.querySelector('parsererror');
-          if (parserError) {
-            throw new Error(`XML parsing error: ${parserError.textContent}`);
-          }
+      //   try {
+      //     // Parse xml and check for errors
+      //     const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
+      //     const parserError = gpxXmlDoc.querySelector('parsererror');
+      //     if (parserError) {
+      //       throw new Error(`XML parsing error: ${parserError.textContent}`);
+      //     }
 
-          const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-          mapMatchApi(gpxGeoJson);
+      //     const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
+      //     mapMatchApi(gpxGeoJson);
 
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          throw new Error(`Failed to parse XML: ${errorMessage}`);
-        }
-      };
-      reader.readAsText(file);
+      //   } catch (error) {
+      //     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      //     throw new Error(`Failed to parse XML: ${errorMessage}`);
+      //   }
+      // };
+      // reader.readAsText(file);
     }
   };
 
