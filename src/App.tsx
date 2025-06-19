@@ -1,11 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
 import togeojson from '@mapbox/togeojson'
 import L, { LatLng } from 'leaflet';
 import createParser from './app/parsers/parserFactory';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 import Button from 'react-bootstrap/Button';
+
+// Fix for default markers in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
 
 // Type definitions
 interface GpxCoordinateArray
@@ -56,14 +64,20 @@ interface MapMatchedGeoJson {
 }
 
 function App() {
+  const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
   const map = useRef(null);
   const uploadButtonRef = useRef(null);
-
-  const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
-
   const [workerResult, setWorkerResult] = useState(null);
   const [workerInstance, setWorkerInstance] = useState(null);
+  const [markers, setMarkers] = useState([]);
+  const [mousePosition, setMousePosition] = useState(null);
+  const shouldShowLine = markers.length > 0 && mousePosition;
 
+  const getLastMarkerPosition = () => {
+    if (markers.length === 0) return null;
+    return markers[markers.length - 1].position;
+  };
+  const linePositions = shouldShowLine ? [getLastMarkerPosition(), mousePosition] : [];
 
   useEffect(() => {
       const workerUrl = new URL("./worker.js", import.meta.url);
@@ -72,7 +86,6 @@ function App() {
       })
 
       worker.onmessage = (event) => {
-        console.log(event.data);
         setWorkerResult(event.data);
         const mapMatchedGeoJsonLayer = L.geoJSON(event.data, {
           style: function(feature: any) {
@@ -128,6 +141,17 @@ function App() {
     reader.readAsText(file);
   }
 
+  const handleMapClick = (latlng) => {
+    const newMarker = {
+      id: Date.now(),
+      position: [latlng.lat, latlng.lng]
+    };
+    setMarkers(prev => [...prev, newMarker]);
+  };
+
+  const handleMouseMove = (latlng) => {
+    setMousePosition([latlng.lat, latlng.lng]);
+  };
 
   return (
     <div className="app">
@@ -145,9 +169,31 @@ function App() {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
               
-              {/*           
-              <MapClickHandler onMapClick={handleMapClick} />
-              */}
+                    
+              <MapEventHandler 
+                onMapClick={handleMapClick} 
+                onMouseMove={handleMouseMove}
+                hasMarkers={markers.length > 0}
+              />
+              
+              {shouldShowLine && (
+                <Polyline 
+                  positions={linePositions}
+                  color="red"
+                  weight={2}
+                  opacity={0.7}
+                  dashArray="5, 10"
+                />
+              )}
+              
+              {markers.map((marker) => (
+                <Marker key={marker.id} position={marker.position}>
+                  <Popup>
+                    Marker at {marker.position[0].toFixed(4)}, {marker.position[1].toFixed(4)}
+                  </Popup>
+                </Marker>
+              ))}
+
             
             </MapContainer>
           </div>
@@ -161,15 +207,16 @@ function App() {
   );
 }
 
-interface MapClickHandlerProps {
-  onMapClick: (latlng: LatLng) => void;
-}
-
-function MapClickHandler({ onMapClick }: MapClickHandlerProps): null {
+function MapEventHandler({ onMapClick, onMouseMove, hasMarkers }) {
   useMapEvents({
     click: (e) => {
       onMapClick(e.latlng);
     },
+    mousemove: (e) => {
+      if(hasMarkers){
+        onMouseMove(e.latlng);
+      }   
+    }
   });
   return null;
 }
