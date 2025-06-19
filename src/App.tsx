@@ -77,7 +77,9 @@ function App() {
     if (markers.length === 0) return null;
     return markers[markers.length - 1].position;
   };
-  const linePositions = shouldShowLine ? [getLastMarkerPosition(), mousePosition] : [];
+  const lastMarkerAndMousePositions = shouldShowLine ? [getLastMarkerPosition(), mousePosition] : [];
+  const markerPositions = markers.length > 1 ? 
+    markers.map(marker => [marker.position[0], marker.position[1]]) : [];
 
   useEffect(() => {
       const workerUrl = new URL("./worker.js", import.meta.url);
@@ -177,13 +179,21 @@ function App() {
               />
               
               {shouldShowLine && (
-                <Polyline 
-                  positions={linePositions}
-                  color="red"
-                  weight={2}
-                  opacity={0.7}
-                  dashArray="5, 10"
-                />
+                <div>
+                  <Polyline 
+                    positions={lastMarkerAndMousePositions}
+                    color="red"
+                    weight={2}
+                    opacity={0.7}
+                    dashArray="5, 10"
+                  />
+                  <Polyline 
+                    positions={markerPositions}
+                    color="red"
+                    weight={2}
+                    opacity={1}
+                  />
+                </div>
               )}
               
               {markers.map((marker) => (
