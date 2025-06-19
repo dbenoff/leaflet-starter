@@ -63,6 +63,11 @@ interface MapMatchedGeoJson {
   features: GeoJsonFeature[];
 }
 
+interface ValhallaRequest {
+  type: string;
+  coordinates: number[][];
+}
+
 function App() {
   const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
   const map = useRef(null);
@@ -136,7 +141,12 @@ function App() {
         }
         const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
         const coordinateArray = gpxGeoJson.features[0].geometry.coordinates;
-        workerInstance.postMessage(coordinateArray);
+
+        const valhallaRequest: ValhallaRequest = {
+          type: "match",
+          coordinates: coordinateArray
+        };
+        workerInstance.postMessage(valhallaRequest);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         throw new Error(`Failed to parse XML: ${errorMessage}`);
