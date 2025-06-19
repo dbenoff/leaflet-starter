@@ -70,6 +70,7 @@ function App() {
   const [workerResult, setWorkerResult] = useState(null);
   const [workerInstance, setWorkerInstance] = useState(null);
   const [markers, setMarkers] = useState([]);
+  const [routePoints, setRoutePoints] = useState([]);
   const [mousePosition, setMousePosition] = useState(null);
   const shouldShowLine = markers.length > 0 && mousePosition;
 
@@ -82,7 +83,7 @@ function App() {
     markers.map(marker => [marker.position[0], marker.position[1]]) : [];
 
   useEffect(() => {
-      const workerUrl = new URL("./worker.js", import.meta.url);
+      const workerUrl = new URL("./mapMatchWorker.ts", import.meta.url);
       const worker = new Worker(workerUrl, {
         type: "module"
       })
@@ -134,7 +135,8 @@ function App() {
           throw new Error(`XML parsing error: ${parserError.textContent}`);
         }
         const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-        workerInstance.postMessage(gpxGeoJson);
+        const coordinateArray = gpxGeoJson.features[0].geometry.coordinates;
+        workerInstance.postMessage(coordinateArray);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         throw new Error(`Failed to parse XML: ${errorMessage}`);
@@ -144,6 +146,8 @@ function App() {
   }
 
   const handleMapClick = (latlng) => {
+    
+      
     const newMarker = {
       id: Date.now(),
       position: [latlng.lat, latlng.lng]
@@ -152,7 +156,9 @@ function App() {
   };
 
   const handleMouseMove = (latlng) => {
-    setMousePosition([latlng.lat, latlng.lng]);
+    if(markers.length > 0){
+      setMousePosition([latlng.lat, latlng.lng]);
+    }  
   };
 
   return (
@@ -223,9 +229,7 @@ function MapEventHandler({ onMapClick, onMouseMove, hasMarkers }) {
       onMapClick(e.latlng);
     },
     mousemove: (e) => {
-      if(hasMarkers){
-        onMouseMove(e.latlng);
-      }   
+      onMouseMove(e.latlng);  
     }
   });
   return null;

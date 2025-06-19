@@ -1,5 +1,5 @@
 
-export const GetMapMaptchedGeoJson = async (gpxGeoJson: GpxCoordinateArray): Promise<void> => {
+export const GetRouteGeoJson = async (coordinateArray): Promise<void> => {
 
   try {
     const body: RequestBody = {
@@ -8,8 +8,7 @@ export const GetMapMaptchedGeoJson = async (gpxGeoJson: GpxCoordinateArray): Pro
       shape_match: "walk_or_snap"
     };
 
-    const coords = gpxGeoJson.features[0].geometry.coordinates;
-    coords.forEach((coord: number[]) => {
+    coordinateArray.forEach((coord: number[]) => {
       const point = { lat: coord[1], lon: coord[0] };
       body.shape.push(point);
     });
@@ -105,12 +104,9 @@ export const GetMapMaptchedGeoJson = async (gpxGeoJson: GpxCoordinateArray): Pro
   }
 };
 
-
 self.onmessage = async function(event) {
   const file = event.data;
   const result = await GetMapMaptchedGeoJson(file);
   
   self.postMessage(result);
 };
-
-export default GetMapMaptchedGeoJson
