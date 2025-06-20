@@ -5,6 +5,7 @@ import L, { LatLng, LayerGroup, Map, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
 import type { FeatureCollection, LineString } from 'geojson';
+import { VALHALLA_REQUEST_TYPE } from "./consts";
 
 // Type definitions
 interface GpxCoordinateArray
@@ -61,7 +62,7 @@ export interface MapMatchedGeoJson {
 }
 
 export interface ValhallaRequest {
-  type: string;
+  type: VALHALLA_REQUEST_TYPE;
   coordinates: number[][];
 }
 
@@ -86,7 +87,7 @@ function App() {
     markers.map(marker => [marker.lat, marker.lon]) : [];
 
   useEffect(() => {
-      const workerUrl = new URL("./mapMatchWorker.ts", import.meta.url);
+      const workerUrl = new URL("./workers/mapMatchWorker.ts", import.meta.url);
       const worker = new Worker(workerUrl, {
         type: "module"
       })
@@ -95,6 +96,7 @@ function App() {
         setWorkerResult(event.data);
         const mapMatchedGeoJsonLayer = L.geoJSON(event.data, {
           style: function(feature: any) {
+            console.log(JSON.stringify(feature));
             switch (feature.properties.name) {
               case 'Unmatched': 
                 return { color: "#ff0000" };
@@ -137,7 +139,7 @@ function App() {
         const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
 
         const valhallaRequest: ValhallaRequest = {
-          type: "match",
+          type: VALHALLA_REQUEST_TYPE.MATCH,
           coordinates: coordinateArray
         };
         workerInstance!.postMessage(valhallaRequest);

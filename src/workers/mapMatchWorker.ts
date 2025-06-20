@@ -1,7 +1,7 @@
-import type { GeoJsonFeature, MapMatchedGeoJson, MapMatchingResponse, MatchedPoint, RequestBody } from "./App";
-import { GetMapMaptchedGeoJson } from "./mapMatchWorker";
+import type { GeoJsonFeature, MapMatchedGeoJson, MapMatchingResponse, MatchedPoint, RequestBody, ValhallaRequest } from "../App";
+import { VALHALLA_REQUEST_TYPE } from "../consts";
 
-export const GetRouteGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
+export const GetMapMaptchedGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
 
   try {
     const body: RequestBody = {
@@ -56,7 +56,7 @@ export const GetRouteGeoJson = async (coordinateArray: number[][]): Promise<MapM
         const edgeIndex = geometryArray[0].edge_index!;
         const edge = mapMatchingResponse.edges[edgeIndex];
         const edgeName = edge && edge.names && edge.names.length > 0 ? 
-          mapMatchingResponse.edges[edgeIndex].names![0] : "No edge name";
+          mapMatchingResponse.edges[edgeIndex].names![0] : "Unmatched";
         geometryArray.forEach((point: MatchedPoint) => {
           point.name = edgeName;
         });
@@ -75,7 +75,7 @@ export const GetRouteGeoJson = async (coordinateArray: number[][]): Promise<MapM
     geometryArraysGroupedByEdgeIndex.forEach((geometryArray: MatchedPoint[], index: number) => {
       const pointsArray: number[][] = [];
       if (index > 0) {
-        const lastPointFromPreviousLine = geometryArraysGroupedByEdgeIndex[index - 1].at(-1)!;
+        const lastPointFromPreviousLine :MatchedPoint = geometryArraysGroupedByEdgeIndex[index - 1].at(-1)!;
         pointsArray.push([lastPointFromPreviousLine.lon, lastPointFromPreviousLine.lat]);
       }
       geometryArray.forEach((matchedPoint: MatchedPoint) => {
@@ -106,9 +106,20 @@ export const GetRouteGeoJson = async (coordinateArray: number[][]): Promise<MapM
   }
 };
 
+export const GetRoutedGeoJson = async (coordinateArray: number[][]): Promise<undefined> => {
+
+};
+
 self.onmessage = async function(event) {
-  const file = event.data;
-  const result = await GetMapMaptchedGeoJson(file);
+  const valhallaRequest: ValhallaRequest = event.data;
+  if(valhallaRequest.type === VALHALLA_REQUEST_TYPE.MATCH){
+    const result = await GetMapMaptchedGeoJson(valhallaRequest.coordinates);
+    self.postMessage(result);
+  }else if(valhallaRequest.type === VALHALLA_REQUEST_TYPE.ROUTE){
+    const result = await GetRoutedGeoJson(valhallaRequest.coordinates);
+    self.postMessage(result);
+  }else{
+    console.warn('API Error:', "unknown Valhalla request type");
+  }
   
-  self.postMessage(result);
 };

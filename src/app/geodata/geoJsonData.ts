@@ -1,5 +1,5 @@
 import GeoData from "./base";
-import { GEOJSON_OVERLAY } from "../consts";
+import { GEOJSON_OVERLAY } from "../../consts";
 
 export default class GeoJsonData extends GeoData {
     data: any;

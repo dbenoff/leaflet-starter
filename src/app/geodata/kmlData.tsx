@@ -1,5 +1,5 @@
 import GeoData from "./base";
-import { KML_OVERLAY } from "../consts";
+import { KML_OVERLAY } from "../../consts";
 
 export default class KmlData extends GeoData {
     data: any;
