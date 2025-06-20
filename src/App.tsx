@@ -1,19 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, GeoJSON, Marker, Popup, Polyline, useMapEvents } from 'react-leaflet';
-import togeojson from '@mapbox/togeojson'
-import L, { LatLng } from 'leaflet';
-import createParser from './app/parsers/parserFactory';
+import React, { useState, useEffect, useRef, type ChangeEventHandler } from 'react';
+import { MapContainer, TileLayer, GeoJSON, type MarkerProps, Popup, Polyline, useMapEvents, Marker } from 'react-leaflet';
+import { gpx } from '@tmcw/togeojson'
+import L, { LatLng, LayerGroup, Map, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
-import Button from 'react-bootstrap/Button';
-
-// Fix for default markers in react-leaflet
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+import type { FeatureCollection, LineString } from 'geojson';
 
 // Type definitions
 interface GpxCoordinateArray
@@ -25,29 +16,35 @@ interface GpxCoordinateArray
   }>;
 }
 
-interface RequestBody {
+export interface RequestBody {
   shape: Array<{ lat: number; lon: number }>;
   costing: string;
   shape_match: string;
 }
 
-interface MatchedPoint {
+export interface MatchedPoint {
   lat: number;
   lon: number;
-  edge_index: number | null;
+  edge_index: number | null;  //null means this point doesn't map to an edge
   name?: string;
 }
 
-interface Edge {
-  names?: string[];
+interface MapMarker {
+  text: null;
+  lat: number;
+  lon: number;
 }
 
-interface MapMatchingResponse {
+export interface Edge {
+  names: string[];
+}
+
+export interface MapMatchingResponse {
   matched_points: MatchedPoint[];
   edges: Edge[];
 }
 
-interface GeoJsonFeature {
+export interface GeoJsonFeature {
   type: "Feature";
   properties: {
     name: string;
@@ -58,34 +55,35 @@ interface GeoJsonFeature {
   };
 }
 
-interface MapMatchedGeoJson {
+export interface MapMatchedGeoJson {
   type: "FeatureCollection";
   features: GeoJsonFeature[];
 }
 
-interface ValhallaRequest {
+export interface ValhallaRequest {
   type: string;
   coordinates: number[][];
 }
 
 function App() {
-  const defaultCenter = [40.7589, -73.9851];  // Default center (New York City)
-  const map = useRef(null);
-  const uploadButtonRef = useRef(null);
+  const defaultCenter: LatLngTuple = [40.7589, -73.9851];  // Default center (New York City)
+  const map = useRef<Map>(null);
+  const uploadButtonRef = useRef<HTMLInputElement>(null);
   const [workerResult, setWorkerResult] = useState(null);
-  const [workerInstance, setWorkerInstance] = useState(null);
-  const [markers, setMarkers] = useState([]);
+  const [workerInstance, setWorkerInstance] = useState<Worker | null>(null);
+  const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [routePoints, setRoutePoints] = useState([]);
-  const [mousePosition, setMousePosition] = useState(null);
+  const [wayPoints, setWayPoints] = useState([]);
+  const [mousePosition, setMousePosition] = useState<LatLng | null>(null);
   const shouldShowLine = markers.length > 0 && mousePosition;
 
   const getLastMarkerPosition = () => {
     if (markers.length === 0) return null;
-    return markers[markers.length - 1].position;
+    return [markers[markers.length - 1].lat, markers[markers.length - 1].lon]
   };
-  const lastMarkerAndMousePositions = shouldShowLine ? [getLastMarkerPosition(), mousePosition] : [];
-  const markerPositions = markers.length > 1 ? 
-    markers.map(marker => [marker.position[0], marker.position[1]]) : [];
+  const lastMarkerAndMousePositions: any = shouldShowLine ? [getLastMarkerPosition(), mousePosition] : [];
+  const markerPositions: any = markers.length > 1 ? 
+    markers.map(marker => [marker.lat, marker.lon]) : [];
 
   useEffect(() => {
       const workerUrl = new URL("./mapMatchWorker.ts", import.meta.url);
@@ -104,8 +102,8 @@ function App() {
                 return { color: "#0000ff" };
             }
           }
-        }).addTo(map.current);        
-        map.current.fitBounds(mapMatchedGeoJsonLayer.getBounds());
+        }).addTo(map.current!);        
+        map.current!.fitBounds(mapMatchedGeoJsonLayer.getBounds());
       };
 
       setWorkerInstance(worker);
@@ -113,24 +111,20 @@ function App() {
       // Clean up worker on component unmount
       return () => {
         worker.terminate();
-        URL.revokeObjectURL(workerUrl);
+        URL.revokeObjectURL(workerUrl.toString());
       };
   }, []);
-
-  const handleLayerCreated = (event: React.MouseEvent<HTMLElement>): void => {
-    uploadButtonRef.current?.click();
-  };
 
   const handleUploadClick = (event: React.MouseEvent<HTMLElement>): void => {
     uploadButtonRef.current?.click();
   };
 
-  const handleFileSelect = async (event: Event): void => {  
-    const target = event.target as HTMLInputElement;
-    const file = target.files?.[0];    
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {  
+    const target = event.currentTarget as HTMLInputElement;
+    const file: File = target.files![0];    
     const reader = new FileReader();
     
-    reader.onload = async (e: ProgressEvent<FileReader>): void => {
+    reader.onload = async (e: ProgressEvent<FileReader>) => {
       const gpxString = e.target?.result as string;
       
       try {
@@ -139,14 +133,14 @@ function App() {
         if (parserError) {
           throw new Error(`XML parsing error: ${parserError.textContent}`);
         }
-        const gpxGeoJson = togeojson.gpx(gpxXmlDoc);
-        const coordinateArray = gpxGeoJson.features[0].geometry.coordinates;
+        const gpxGeoJson: FeatureCollection = gpx(gpxXmlDoc);
+        const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
 
         const valhallaRequest: ValhallaRequest = {
           type: "match",
           coordinates: coordinateArray
         };
-        workerInstance.postMessage(valhallaRequest);
+        workerInstance!.postMessage(valhallaRequest);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         throw new Error(`Failed to parse XML: ${errorMessage}`);
@@ -155,19 +149,18 @@ function App() {
     reader.readAsText(file);
   }
 
-  const handleMapClick = (latlng) => {
-    
-      
-    const newMarker = {
-      id: Date.now(),
-      position: [latlng.lat, latlng.lng]
+  const handleMapClick: any = (latlng: LatLng) => {
+    const newMarker: MapMarker = {
+      text: null,
+      lat: latlng.lat,
+      lon: latlng.lng
     };
     setMarkers(prev => [...prev, newMarker]);
   };
 
-  const handleMouseMove = (latlng) => {
+  const handleMouseMove: any = (latlng: LatLng) => {
     if(markers.length > 0){
-      setMousePosition([latlng.lat, latlng.lng]);
+      setMousePosition(latlng);
     }  
   };
 
@@ -191,7 +184,6 @@ function App() {
               <MapEventHandler 
                 onMapClick={handleMapClick} 
                 onMouseMove={handleMouseMove}
-                hasMarkers={markers.length > 0}
               />
               
               {shouldShowLine && (
@@ -213,9 +205,9 @@ function App() {
               )}
               
               {markers.map((marker) => (
-                <Marker key={marker.id} position={marker.position}>
+                <Marker key={marker.text} position={[marker.lat, marker.lon]}>
                   <Popup>
-                    Marker at {marker.position[0].toFixed(4)}, {marker.position[1].toFixed(4)}
+                    Marker at {marker.lat.toFixed(4)}, {marker.lon.toFixed(4)}
                   </Popup>
                 </Marker>
               ))}
@@ -233,7 +225,10 @@ function App() {
   );
 }
 
-function MapEventHandler({ onMapClick, onMouseMove, hasMarkers }) {
+
+
+
+function MapEventHandler({ onMapClick, onMouseMove } : { onMapClick: any, onMouseMove: any }) {
   useMapEvents({
     click: (e) => {
       onMapClick(e.latlng);

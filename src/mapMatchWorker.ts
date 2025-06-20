@@ -1,5 +1,6 @@
+import type { GeoJsonFeature, MapMatchedGeoJson, MapMatchingResponse, MatchedPoint, RequestBody, ValhallaRequest } from "./App";
 
-export const GetMapMaptchedGeoJson = async (coordinateArray): Promise<void> => {
+export const GetMapMaptchedGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
 
   try {
     const body: RequestBody = {
@@ -73,7 +74,7 @@ export const GetMapMaptchedGeoJson = async (coordinateArray): Promise<void> => {
     geometryArraysGroupedByEdgeIndex.forEach((geometryArray: MatchedPoint[], index: number) => {
       const pointsArray: number[][] = [];
       if (index > 0) {
-        const lastPointFromPreviousLine = geometryArraysGroupedByEdgeIndex[index - 1].at(-1)!;
+        const lastPointFromPreviousLine :MatchedPoint = geometryArraysGroupedByEdgeIndex[index - 1].at(-1)!;
         pointsArray.push([lastPointFromPreviousLine.lon, lastPointFromPreviousLine.lat]);
       }
       geometryArray.forEach((matchedPoint: MatchedPoint) => {
@@ -104,10 +105,7 @@ export const GetMapMaptchedGeoJson = async (coordinateArray): Promise<void> => {
   }
 };
 
-
-
-
-export const GetRoutedGeoJson = async (coordinateArray): Promise<void> => {
+export const GetRoutedGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
 
   try {
     const body: RequestBody = {
@@ -181,7 +179,7 @@ export const GetRoutedGeoJson = async (coordinateArray): Promise<void> => {
     geometryArraysGroupedByEdgeIndex.forEach((geometryArray: MatchedPoint[], index: number) => {
       const pointsArray: number[][] = [];
       if (index > 0) {
-        const lastPointFromPreviousLine = geometryArraysGroupedByEdgeIndex[index - 1].at(-1)!;
+        const lastPointFromPreviousLine = geometryArraysGroupedByEdgeIndex[index - 1][self.length - 1]!;
         pointsArray.push([lastPointFromPreviousLine.lon, lastPointFromPreviousLine.lat]);
       }
       geometryArray.forEach((matchedPoint: MatchedPoint) => {

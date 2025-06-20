@@ -15,11 +15,17 @@
 
     /* Linting */
     "strict": true,
-    "noUnusedLocals": true,
+    "noUnusedLocals": false,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts"]
+    "include": [
+    "src/**/*.ts", // Includes all .ts files in src and its subdirectories
+    "vite.config.ts", // Includes the Vite configuration file
+    "server/**/*.ts" // Includes any server-side TypeScript files
+  ],
+  "exclude": ["build", "node_modules"]
+  
 }

@@ -1,4 +1,3 @@
-    import ShapefileParser from "./shapefileParser";
 import GeoJsonParser from "./geoJsonParser";
 import KmlParser from "./kmlParser";
 import GpxParser from "./gpxParser";
@@ -11,5 +10,5 @@ export default function createParser(files: FileList, mapRef: any) {
     } else if (files[0].name.endsWith('.gpx')) {
         return new GpxParser(files, mapRef);
     }
-    return new ShapefileParser(files, mapRef);
+    throw new Error("No parser available for file type!");
 }

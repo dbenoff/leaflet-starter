@@ -1,5 +1,7 @@
+import type { GeoJsonFeature, MapMatchedGeoJson, MapMatchingResponse, MatchedPoint, RequestBody } from "./App";
+import { GetMapMaptchedGeoJson } from "./mapMatchWorker";
 
-export const GetRouteGeoJson = async (coordinateArray): Promise<void> => {
+export const GetRouteGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
 
   try {
     const body: RequestBody = {
