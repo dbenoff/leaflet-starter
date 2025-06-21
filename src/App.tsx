@@ -94,8 +94,9 @@ function App() {
 
   useEffect(() => {
       //create a worker thread to interact with Valhalla server
-      const workerUrl = new URL("./workers/valhallaWorker.ts", import.meta.url);
-      const worker = new Worker(workerUrl, {
+      // TODO: when workerUrl is instantiated separately, mime type for worker is wrong in /dist
+      // const workerUrl = new URL("./workers/valhallaWorker.ts", import.meta.url);
+      const worker = new Worker(new URL("./workers/valhallaWorker.ts", import.meta.url), {
         type: "module"
       })
       worker.onmessage = (event) => {
@@ -107,7 +108,7 @@ function App() {
       // Clean up worker on component unmount
       return () => {
         worker.terminate();
-        URL.revokeObjectURL(workerUrl.toString());
+        URL.revokeObjectURL(new URL("./workers/valhallaWorker.ts", import.meta.url).toString());
       };
   }, []);
 
