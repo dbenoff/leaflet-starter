@@ -4,7 +4,7 @@ import { gpx } from '@tmcw/togeojson'
 import L, { LatLng, LayerGroup, Map, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './App.css';
-import type { FeatureCollection, LineString } from 'geojson';
+import type { FeatureCollection, GeoJsonObject, LineString } from 'geojson';
 import { VALHALLA_REQUEST_TYPE } from "./consts";
 
 // Type definitions
@@ -56,26 +56,31 @@ export interface GeoJsonFeature {
   };
 }
 
-export interface MapMatchedGeoJson {
-  type: "FeatureCollection";
+export interface FeatureCollectionGeoJson {
+  type: String;
   features: GeoJsonFeature[];
 }
 
 export interface ValhallaRequest {
   type: VALHALLA_REQUEST_TYPE;
   coordinates: number[][];
+  files: FileList;
+}
+
+export interface ValhallaResponse {
+  type: VALHALLA_REQUEST_TYPE;
+  geojson: GeoJsonObject;
 }
 
 function App() {
   const defaultCenter: LatLngTuple = [40.7589, -73.9851];  // Default center (New York City)
   const map = useRef<Map>(null);
   const uploadButtonRef = useRef<HTMLInputElement>(null);
-  const [workerResult, setWorkerResult] = useState(null);
-  const [workerInstance, setWorkerInstance] = useState<Worker | null>(null);
+  const [valhallaWorkerInstance, setValhallaWorkerInstance] = useState<Worker>();
+  const [fileWorkerInstance, setFileWorkerInstance] = useState<Worker>();
   const [markers, setMarkers] = useState<MapMarker[]>([]);
-  const [routePoints, setRoutePoints] = useState([]);
-  const [wayPoints, setWayPoints] = useState([]);
-  const [mousePosition, setMousePosition] = useState<LatLng | null>(null);
+  const [valhallaResponse, setValhallaReponse] = useState<ValhallaResponse>();
+  const [mousePosition, setMousePosition] = useState<LatLng>();
   const shouldShowLine = markers.length > 0 && mousePosition;
 
   const getLastMarkerPosition = () => {
@@ -86,29 +91,18 @@ function App() {
   const markerPositions: any = markers.length > 1 ? 
     markers.map(marker => [marker.lat, marker.lon]) : [];
 
+
   useEffect(() => {
-      const workerUrl = new URL("./workers/mapMatchWorker.ts", import.meta.url);
+      //create a worker thread to interact with Valhalla server
+      const workerUrl = new URL("./workers/valhallaWorker.ts", import.meta.url);
       const worker = new Worker(workerUrl, {
         type: "module"
       })
-
       worker.onmessage = (event) => {
-        setWorkerResult(event.data);
-        const mapMatchedGeoJsonLayer = L.geoJSON(event.data, {
-          style: function(feature: any) {
-            console.log(JSON.stringify(feature));
-            switch (feature.properties.name) {
-              case 'Unmatched': 
-                return { color: "#ff0000" };
-              default:
-                return { color: "#0000ff" };
-            }
-          }
-        }).addTo(map.current!);        
-        map.current!.fitBounds(mapMatchedGeoJsonLayer.getBounds());
+        setValhallaReponse(event.data as ValhallaResponse)
       };
-
-      setWorkerInstance(worker);
+      
+      setValhallaWorkerInstance(worker);
 
       // Clean up worker on component unmount
       return () => {
@@ -117,38 +111,31 @@ function App() {
       };
   }, []);
 
+
+  useEffect(() => {
+    if(valhallaResponse){
+const mapMatchedGeoJsonLayer = L.geoJSON(valhallaResponse.geojson, {
+          style: function(feature: any) {
+            switch (feature.properties.name) {
+              case 'Unmatched': 
+                return { color: "#ff0000" };
+              default:
+                return { color: "#0000ff" };
+            }
+          }
+        }).addTo(map.current!);        
+        map.current!.fitBounds(mapMatchedGeoJsonLayer.getBounds());    
+    }
+  }, [valhallaResponse]);
+
   const handleUploadClick = (event: React.MouseEvent<HTMLElement>): void => {
     uploadButtonRef.current?.click();
   };
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {  
     const target = event.currentTarget as HTMLInputElement;
-    const file: File = target.files![0];    
-    const reader = new FileReader();
-    
-    reader.onload = async (e: ProgressEvent<FileReader>) => {
-      const gpxString = e.target?.result as string;
-      
-      try {
-        const gpxXmlDoc = new DOMParser().parseFromString(gpxString, 'application/xml');
-        const parserError = gpxXmlDoc.querySelector('parsererror');
-        if (parserError) {
-          throw new Error(`XML parsing error: ${parserError.textContent}`);
-        }
-        const gpxGeoJson: FeatureCollection = gpx(gpxXmlDoc);
-        const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
-
-        const valhallaRequest: ValhallaRequest = {
-          type: VALHALLA_REQUEST_TYPE.MATCH,
-          coordinates: coordinateArray
-        };
-        workerInstance!.postMessage(valhallaRequest);
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        throw new Error(`Failed to parse XML: ${errorMessage}`);
-      }
-    }
-    reader.readAsText(file);
+    const fileList: FileList = target.files!;    
+    valhallaWorkerInstance?.postMessage(fileList[0]);
   }
 
   const handleMapClick: any = (latlng: LatLng) => {

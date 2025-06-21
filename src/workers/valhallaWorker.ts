@@ -1,7 +1,40 @@
-import type { GeoJsonFeature, MapMatchedGeoJson, MapMatchingResponse, MatchedPoint, RequestBody, ValhallaRequest } from "../App";
+import type { GeoJsonFeature, FeatureCollectionGeoJson, MapMatchingResponse, MatchedPoint, RequestBody, ValhallaRequest } from "../App";
 import { VALHALLA_REQUEST_TYPE } from "../consts";
+import type { FeatureCollection, LineString } from "geojson";
+import { gpx, kml } from '@tmcw/togeojson'
+import { DOMParser } from 'xmldom';
 
-export const GetMapMaptchedGeoJson = async (coordinateArray: number[][]): Promise<MapMatchedGeoJson | undefined> => {
+  const parseGpxFileGeometry = (file: File): Promise<number[][]> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = async (e: ProgressEvent<FileReader>) => {
+          const gpxString = e.target?.result as string;
+          
+          try {
+            const gpxXmlDoc: Document = new DOMParser().parseFromString(gpxString, 'application/xml');
+            // TODO: fix error check.  xmldom doesn't support .querySelector
+            // const parserError = gpxXmlDoc.querySelector('parsererror');
+            // if (parserError) {
+            //   throw new Error(`XML parsing error: ${parserError.textContent}`);
+            // }
+            const gpxGeoJson: FeatureCollection = gpx(gpxXmlDoc);
+            const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
+            resolve(coordinateArray);
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            throw new Error(`Failed to parse XML: ${errorMessage}`);
+          }
+        }
+
+        reader.onerror = (error) => {
+            reject(error);
+        };
+
+        reader.readAsText(file);
+    });
+};
+
+const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<FeatureCollectionGeoJson> => {
 
   try {
     const body: RequestBody = {
@@ -67,7 +100,7 @@ export const GetMapMaptchedGeoJson = async (coordinateArray: number[][]): Promis
       }
     });
 
-    const mapMatchedGeoJson: MapMatchedGeoJson = {
+    const mapMatchedGeoJson: FeatureCollectionGeoJson = {
       type: "FeatureCollection",
       features: []
     };
@@ -99,27 +132,15 @@ export const GetMapMaptchedGeoJson = async (coordinateArray: number[][]): Promis
 
     return mapMatchedGeoJson;
 
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     console.log('API Error:', errorMessage);
+    throw new Error("Something went wrong!");
   }
-};
-
-export const GetRoutedGeoJson = async (coordinateArray: number[][]): Promise<undefined> => {
-
 };
 
 self.onmessage = async function(event) {
-  const valhallaRequest: ValhallaRequest = event.data;
-  if(valhallaRequest.type === VALHALLA_REQUEST_TYPE.MATCH){
-    const result = await GetMapMaptchedGeoJson(valhallaRequest.coordinates);
-    self.postMessage(result);
-  }else if(valhallaRequest.type === VALHALLA_REQUEST_TYPE.ROUTE){
-    const result = await GetRoutedGeoJson(valhallaRequest.coordinates);
-    self.postMessage(result);
-  }else{
-    console.warn('API Error:', "unknown Valhalla request type");
-  }
-  
+  const gpxCoordinateArray: number[][] = await parseGpxFileGeometry(event.data as File);
+  const featureCollectionGeoJson: FeatureCollectionGeoJson = await getMapMatchedRouteGeoJson(gpxCoordinateArray);
+  self.postMessage(featureCollectionGeoJson);
 };
