@@ -114,7 +114,7 @@ function App() {
 
   useEffect(() => {
     if(valhallaResponse){
-      const mapMatchedGeoJsonLayer = L.geoJSON(valhallaResponse.geojson, {
+      const mapMatchedGeoJsonLayer = L.geoJSON(valhallaResponse.geojson.features, {
           style: function(feature: any) {
             switch (feature.properties.name) {
               case 'Unmatched': 

@@ -3,7 +3,6 @@ import type {
   GeoJsonFeature,
   MapMatchingResponse,
   MatchedPoint,
-  ValhallaMapMatchRequestBody,
   ValhallaResponse,
 } from '../App';
 import type { FeatureCollection, LineString } from 'geojson';
