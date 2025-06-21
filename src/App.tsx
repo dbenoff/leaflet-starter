@@ -17,7 +17,7 @@ interface GpxCoordinateArray
   }>;
 }
 
-export interface RequestBody {
+export interface ValhallaMapMatchRequestBody {
   shape: Array<{ lat: number; lon: number }>;
   costing: string;
   shape_match: string;
@@ -57,7 +57,7 @@ export interface GeoJsonFeature {
 }
 
 export interface FeatureCollectionGeoJson {
-  type: String;
+  type: string;
   features: GeoJsonFeature[];
 }
 
@@ -69,7 +69,7 @@ export interface ValhallaRequest {
 
 export interface ValhallaResponse {
   type: VALHALLA_REQUEST_TYPE;
-  geojson: GeoJsonObject;
+  geojson: FeatureCollectionGeoJson;
 }
 
 function App() {
@@ -114,7 +114,7 @@ function App() {
 
   useEffect(() => {
     if(valhallaResponse){
-const mapMatchedGeoJsonLayer = L.geoJSON(valhallaResponse.geojson, {
+      const mapMatchedGeoJsonLayer = L.geoJSON(valhallaResponse.geojson, {
           style: function(feature: any) {
             switch (feature.properties.name) {
               case 'Unmatched': 

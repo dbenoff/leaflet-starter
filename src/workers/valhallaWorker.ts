@@ -1,43 +1,52 @@
-import type { GeoJsonFeature, FeatureCollectionGeoJson, MapMatchingResponse, MatchedPoint, RequestBody, ValhallaRequest } from "../App";
-import { VALHALLA_REQUEST_TYPE } from "../consts";
-import type { FeatureCollection, LineString } from "geojson";
-import { gpx, kml } from '@tmcw/togeojson'
+import type {
+  FeatureCollectionGeoJson,
+  GeoJsonFeature,
+  MapMatchingResponse,
+  MatchedPoint,
+  ValhallaMapMatchRequestBody,
+  ValhallaResponse,
+} from '../App';
+import type { FeatureCollection, LineString } from 'geojson';
+import { gpx } from '@tmcw/togeojson';
 import { DOMParser } from 'xmldom';
+import { VALHALLA_REQUEST_TYPE } from '../consts';
 
-  const parseGpxFileGeometry = (file: File): Promise<number[][]> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = async (e: ProgressEvent<FileReader>) => {
-          const gpxString = e.target?.result as string;
-          
-          try {
-            const gpxXmlDoc: Document = new DOMParser().parseFromString(gpxString, 'application/xml');
-            // TODO: fix error check.  xmldom doesn't support .querySelector
-            // const parserError = gpxXmlDoc.querySelector('parsererror');
-            // if (parserError) {
-            //   throw new Error(`XML parsing error: ${parserError.textContent}`);
-            // }
-            const gpxGeoJson: FeatureCollection = gpx(gpxXmlDoc);
-            const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
-            resolve(coordinateArray);
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            throw new Error(`Failed to parse XML: ${errorMessage}`);
-          }
+
+export interface ValhallaMapMatchRequestBody {
+  shape: Array<{ lat: number; lon: number }>;
+  costing: string;
+  shape_match: string;
+}
+
+const parseGpxFileGeometry = (file: File): Promise<number[][]> => {
+  return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async (e: ProgressEvent<FileReader>) => {
+        const gpxString = e.target?.result as string;
+
+        try {
+          const gpxXmlDoc: Document = new DOMParser().parseFromString(gpxString, 'application/xml');
+          const gpxGeoJson: FeatureCollection = gpx(gpxXmlDoc);
+          const coordinateArray = (gpxGeoJson.features[0].geometry as LineString).coordinates
+          resolve(coordinateArray);
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          throw new Error(`Failed to parse XML: ${errorMessage}`);
         }
+      }
 
-        reader.onerror = (error) => {
-            reject(error);
-        };
+      reader.onerror = (error) => {
+          reject(error);
+      };
 
-        reader.readAsText(file);
-    });
+      reader.readAsText(file);
+  });
 };
 
-const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<FeatureCollectionGeoJson> => {
+const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<ValhallaResponse> => {
 
   try {
-    const body: RequestBody = {
+    const body: ValhallaMapMatchRequestBody = {
       shape: [],
       costing: "auto",
       shape_match: "walk_or_snap"
@@ -105,6 +114,7 @@ const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<F
       features: []
     };
 
+    
     geometryArraysGroupedByEdgeIndex.forEach((geometryArray: MatchedPoint[], index: number) => {
       const pointsArray: number[][] = [];
       if (index > 0) {
@@ -130,7 +140,13 @@ const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<F
       mapMatchedGeoJson.features.push(feature);
     });
 
-    return mapMatchedGeoJson;
+
+    const valhallaResponse: ValhallaResponse = {
+      type: VALHALLA_REQUEST_TYPE.MATCH,
+      geojson: mapMatchedGeoJson
+    };
+
+    return valhallaResponse;
 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -141,6 +157,6 @@ const getMapMatchedRouteGeoJson = async (coordinateArray: number[][]): Promise<F
 
 self.onmessage = async function(event) {
   const gpxCoordinateArray: number[][] = await parseGpxFileGeometry(event.data as File);
-  const featureCollectionGeoJson: FeatureCollectionGeoJson = await getMapMatchedRouteGeoJson(gpxCoordinateArray);
-  self.postMessage(featureCollectionGeoJson);
+  const valhallaResponse: ValhallaResponse = await getMapMatchedRouteGeoJson(gpxCoordinateArray);
+  self.postMessage(valhallaResponse);
 };
