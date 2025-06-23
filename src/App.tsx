@@ -159,51 +159,56 @@ function App() {
       <div className="container">
         <div className="row">
           <div className="col-9">
-            <MapContainer
-              center={defaultCenter}
-              zoom={12}
-              style={{ borderRadius: '6px', height: '500px', width: '100%' }}
-              ref={map}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              
-                    
-              <MapEventHandler 
-                onMapClick={handleMapClick} 
-                onMouseMove={handleMouseMove}
-              />
-              
-              {shouldShowLine && (
-                <div>
-                  <Polyline 
-                    positions={lastMarkerAndMousePositions}
-                    color="red"
-                    weight={2}
-                    opacity={0.7}
-                    dashArray="5, 10"
-                  />
-                  <Polyline 
-                    positions={markerPositions}
-                    color="red"
-                    weight={2}
-                    opacity={1}
-                  />
-                </div>
-              )}
-              
-              {markers.map((marker) => (
-                <Marker key={marker.text} position={[marker.lat, marker.lon]}>
-                  <Popup>
-                    Marker at {marker.lat.toFixed(4)}, {marker.lon.toFixed(4)}
-                  </Popup>
-                </Marker>
-              ))}
+            <div  id="mapcontainer">
+              <button id="refreshButton">Refresh Button</button>
+              <MapContainer
+                id="leafletmapcontainer"
+                center={defaultCenter}
+                zoom={12}
+                style={{ borderRadius: '6px', height: '500px', width: '100%' }}
+                ref={map}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
 
-            
-            </MapContainer>
+
+                <MapEventHandler
+                  onMapClick={handleMapClick}
+                  onMouseMove={handleMouseMove}
+                />
+
+                {shouldShowLine && (
+                  <div>
+                    <Polyline
+                      positions={lastMarkerAndMousePositions}
+                      color="red"
+                      weight={2}
+                      opacity={0.7}
+                      dashArray="5, 10"
+                    />
+                    <Polyline
+                      positions={markerPositions}
+                      color="red"
+                      weight={2}
+                      opacity={1}
+                    />
+                  </div>
+                )}
+
+                {markers.map((marker) => (
+                  <Marker key={marker.text} position={[marker.lat, marker.lon]}>
+                    <Popup>
+                      Marker at {marker.lat.toFixed(4)}, {marker.lon.toFixed(4)}
+                    </Popup>
+                  </Marker>
+                ))}
+
+
+              </MapContainer>
+
+            </div>
           </div>
           <div className="rounded col-3 p-3 bg-primary bg-gradient text-break">
             <input type="file" ref={uploadButtonRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
