@@ -12,11 +12,3 @@
 #leafletmapcontainer {
   z-index: 0;
 }
-
-#refreshButton {
-  position: absolute;
-  z-index: 400;
-  top: 90%;
-  left: 90%;
-  transform: translate(-50%, -50%);
-}

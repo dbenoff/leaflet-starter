@@ -6,6 +6,7 @@ import 'leaflet/dist/leaflet.css';
 import './App.css';
 import type { FeatureCollection, GeoJsonObject, LineString } from 'geojson';
 import { VALHALLA_REQUEST_TYPE } from "./consts";
+import Button from '@mui/material/Button';
 
 // Type definitions
 interface GpxCoordinateArray
@@ -160,7 +161,15 @@ function App() {
         <div className="row">
           <div className="col-9">
             <div  id="mapcontainer">
-              <button id="refreshButton">Refresh Button</button>
+              <Button
+                  sx={{
+                    position: 'absolute',
+                    zIndex: 400,
+                    transform: 'translate(-50%, -50%)',
+                    bottom: '10px',
+                    right: '-65px'
+                  }}
+                  variant="contained" >Refresh Button</Button>
               <MapContainer
                 id="leafletmapcontainer"
                 center={defaultCenter}
@@ -210,9 +219,9 @@ function App() {
 
             </div>
           </div>
-          <div className="rounded col-3 p-3 bg-primary bg-gradient text-break">
+          <div className="rounded col-3 p-3  bg-gradient text-break">
             <input type="file" ref={uploadButtonRef} style={{ display: 'none' }} onChange={handleFileSelect}/>
-            <button className="rounded btn btn-light" onClick={handleUploadClick}>Open File Dialog</button>
+            <Button variant="contained" onClick={handleUploadClick}>Open File Dialog</Button>
           </div>
         </div>
       </div>
